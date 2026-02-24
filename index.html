@@ -275,7 +275,7 @@
     // === 统一的合法性校验 (提交时才检查，保护拼音输入) ===
     function validateInput(val) {
       if (val.length > 6) return "最多只能输入 6 个字符！";
-      if (/[^\u4e00-\u9fa5a-zA-Z0-9]/.test(val)) return "只能包含中英文和数字，不能有特殊符号！";
+      // if (/[^\u4e00-\u9fa5a-zA-Z0-9]/.test(val)) return "只能包含中英文和数字，不能有特殊符号！";
       return null;
     }
 
