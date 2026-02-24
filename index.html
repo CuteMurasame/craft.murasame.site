@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Finite Craft - Minimal</title>
-  <script src="https://gcore.jsdelivr.net/npm/sweetalert2@11"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
   <style>
     /* === 极简主题变量 === */
     :root {
@@ -24,7 +24,7 @@
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-    
+
     body { background-color: var(--bg); color: var(--text); height: 100vh; display: flex; flex-direction: column; overflow: hidden; transition: background-color 0.2s, color 0.2s; }
 
     /* === 通用组件 === */
@@ -48,7 +48,6 @@
 
     /* === 拖拽布局容器 === */
     .main-container { display: flex; flex-direction: column; flex: 1; overflow: hidden; }
-    
     .resizer { height: 6px; background: var(--surface); cursor: row-resize; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); z-index: 5; transition: background 0.2s; }
     .resizer:hover, .resizer.dragging { background: var(--text-muted); }
 
@@ -58,14 +57,19 @@
     /* 区域共用 */
     .pane { display: flex; flex-direction: column; overflow: hidden; }
     .pane-header { padding: 12px 24px; border-bottom: 1px solid var(--border); background: var(--bg); flex-shrink: 0; }
-    
-    /* 上部：词库区 (2fr) & 控制区 (1fr) */
+
+    /* 上部：词库区 & 控制区 */
     .inventory-area { border-right: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; background: var(--surface); }
     .controls-area { padding: 20px 24px; overflow-y: auto; display: flex; flex-direction: column; gap: 24px; background: var(--surface); }
-    
+
+    /* 词库内部搜索 */
+    .search-bar { padding: 8px 24px; background: var(--bg); border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 10px; }
+    .search-bar input { flex: 1; padding: 6px 12px; font-size: 0.85rem; border-radius: 4px; }
+
     .word-grid { flex: 1; overflow-y: auto; padding: 16px 24px; display: flex; flex-wrap: wrap; gap: 10px; align-content: flex-start; }
     .word-item { padding: 8px 14px; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius); cursor: pointer; user-select: none; font-size: 0.95rem; display: inline-flex; align-items: center; gap: 6px; transition: border-color 0.1s; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
     .word-item:hover { border-color: var(--text-muted); }
+    .word-item.hidden { display: none; }
 
     .control-block { background: var(--bg); border: 1px solid var(--border); padding: 18px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
     .input-group { display: flex; gap: 8px; }
@@ -74,16 +78,16 @@
     .custom-actions { display: flex; gap: 10px; margin-top: 16px; }
     .custom-actions button { flex: 1; padding: 10px 0; font-size: 0.95rem; }
 
-    /* 中部：工作台 (2fr) & 释义 (1fr) */
+    /* 中部：工作台 & 释义 */
     .craft-station { border-right: 1px solid var(--border); padding: 20px 24px; display: flex; flex-direction: column; justify-content: center; overflow-y: auto; background: var(--bg); }
     .equation { display: flex; align-items: center; justify-content: center; gap: 16px; margin-bottom: 24px; }
     .slot { width: 140px; height: 54px; border: 1px dashed var(--text-muted); border-radius: var(--radius); display: flex; align-items: center; justify-content: center; font-size: 1.05rem; cursor: pointer; background: var(--surface); transition: all 0.2s; }
     .slot.filled { border-style: solid; border-color: var(--text); background: var(--bg); box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
     .slot.filled:hover { border-color: var(--error-border); color: var(--error-text); text-decoration: line-through; }
-    
+
     .action-row { display: flex; gap: 12px; max-width: 480px; margin: 0 auto; width: 100%; }
     .action-row input { flex: 1; }
-    
+
     .hint-display { max-width: 500px; margin: 16px auto 0 auto; font-size: 0.9rem; color: var(--text-muted); text-align: center; line-height: 1.6; }
     .hint-display strong { color: var(--text); font-weight: 600; }
 
@@ -100,9 +104,7 @@
     .history-formula { font-weight: 600; font-size: 1.05rem; display: flex; align-items: center; gap: 8px; }
     .history-reason { font-size: 0.95rem; opacity: 0.9; line-height: 1.5; }
 
-    /* 适配 SweetAlert Dark Mode */
     body[data-theme="dark"] .swal2-popup { background: var(--surface); color: var(--text); }
-    body[data-theme="dark"] .swal2-title, body[data-theme="dark"] .swal2-content { color: var(--text); }
   </style>
 </head>
 <body>
@@ -118,17 +120,20 @@
       <span style="font-size: 0.9rem; color: var(--text-muted);">每日挑战:</span>
       <input type="date" id="datePicker">
       <button id="btnLoad">加载</button>
-      <button id="themeToggle" class="outline" style="padding: 10px;" title="切换亮/暗主题">🌓</button>
+      <button id="themeToggle" class="outline" style="padding: 10px;">🌓</button>
     </div>
   </div>
 
   <div class="main-container" id="mainContainer">
-    
+
     <div class="pane" id="paneTop" style="height: 35%;">
       <div class="inventory-area">
         <div class="pane-header section-title" style="margin: 0; background: var(--bg);">
           <span>可用词库 <span id="wordCount" style="font-weight:normal;">(0)</span></span>
-          <span style="font-size: 0.8rem; font-weight: normal; text-transform: none;">点击放入工作台并查看释义</span>
+          <span style="font-size: 0.8rem; font-weight: normal; text-transform: none;">点击放入工作台查看释义</span>
+        </div>
+        <div class="search-bar">
+            🔍 <input type="text" id="inventorySearch" placeholder="搜索已拥有的词语..." autocomplete="off">
         </div>
         <div class="word-grid" id="inventory"></div>
       </div>
@@ -138,14 +143,14 @@
           <div class="section-title" style="margin-bottom: 8px;">🪄 魔法模式</div>
           <div style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 12px;">无视规则，强制添加任意词语</div>
           <div class="input-group">
-            <input type="text" id="magicInput" placeholder="输入添加词 (最多6字)" autocomplete="off">
+            <input type="text" id="magicInput" placeholder="输入添加词 (最多7字)" autocomplete="off">
             <button id="btnMagicAdd">添加</button>
           </div>
         </div>
 
         <div class="control-block">
           <div class="section-title" style="margin-bottom: 8px;">🛠️ 自定义游戏</div>
-          <div style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 16px;">构建你的专属挑战并分享</div>
+          <div style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 16px;">构建专属挑战并分享</div>
           <div class="custom-grid">
             <input type="text" id="cInit1" placeholder="初始1" value="水">
             <input type="text" id="cInit2" placeholder="初始2" value="火">
@@ -155,7 +160,7 @@
           <input type="text" id="cTarget" placeholder="最终目标词汇" value="魔法" style="width: 100%;">
           <div class="custom-actions">
             <button id="btnStartCustom" style="background: var(--success-border); color: #000;">开始挑战</button>
-            <button id="btnShareCustom" class="outline" title="复制当前填写的关卡链接发给朋友">🔗 复制链接</button>
+            <button id="btnShareCustom" class="outline">🔗 复制链接</button>
           </div>
         </div>
       </div>
@@ -173,9 +178,9 @@
             <div class="slot" id="slotB" onclick="clearSlot('B')">空</div>
             <div style="font-weight: 300; font-size: 1.8rem; color: var(--text-muted);">="</div>
           </div>
-          
+
           <div class="action-row">
-            <input type="text" id="craftInput" placeholder="输入合成结果 (最多6字)" autocomplete="off">
+            <input type="text" id="craftInput" placeholder="猜猜合成结果？(最多7字)" autocomplete="off">
             <button id="btnHint" class="outline">💡 提示</button>
             <button id="btnSubmitCraft">验证</button>
           </div>
@@ -185,7 +190,7 @@
         <div class="word-dictionary">
           <div class="section-title">词语释义 (Dictionary)</div>
           <div id="dictContent">
-            <div class="dict-empty">点击任意词语以查看其 Emoji 及详细解释...</div>
+            <div class="dict-empty">点击任意词汇查看其 Emoji 及详细解释...</div>
           </div>
         </div>
       </div>
@@ -211,7 +216,6 @@
       const pT = document.getElementById('paneTop'); const pM = document.getElementById('paneMiddle'); const pB = document.getElementById('paneBottom');
       const r1 = document.getElementById('resizer1'); const r2 = document.getElementById('resizer2');
       let isDragging = false, currentResizer = null, startY = 0, startHeights = [];
-
       function onMouseDown(e, rIndex) {
         isDragging = true; currentResizer = rIndex; startY = e.clientY;
         const totalH = container.clientHeight;
@@ -221,7 +225,6 @@
         (rIndex === 1 ? r1 : r2).classList.add('dragging');
       }
       r1.addEventListener('mousedown', e => onMouseDown(e, 1)); r2.addEventListener('mousedown', e => onMouseDown(e, 2));
-
       function onMouseMove(e) {
         if (!isDragging) return;
         const dyPercent = ((e.clientY - startY) / container.clientHeight) * 100;
@@ -259,36 +262,30 @@
     const Toast = Swal.mixin({ toast: true, position: 'top', showConfirmButton: false, timer: 2000, timerProgressBar: true });
     function showToast(title, icon = 'info') { Toast.fire({ icon, title }); }
 
-    // === 模拟全选删除，支持 Ctrl+Z ===
+    // === 输入框清空并支持 Ctrl+Z ===
     function clearInputWithUndo(inputEl) {
-      inputEl.focus();
-      inputEl.select();
+      inputEl.focus(); inputEl.select();
       try {
-        if (!document.execCommand('insertText', false, '')) {
-          inputEl.value = ''; 
-        }
-      } catch (e) {
-        inputEl.value = '';
-      }
+        if (!document.execCommand('insertText', false, '')) { inputEl.value = ''; }
+      } catch (e) { inputEl.value = ''; }
     }
 
-    // === 统一的合法性校验 (提交时才检查，保护拼音输入) ===
+    // === 提交时校验 (无字符限制，仅长度限制) ===
     function validateInput(val) {
-      if (val.length > 6) return "最多只能输入 6 个字符！";
-      // if (/[^\u4e00-\u9fa5a-zA-Z0-9]/.test(val)) return "只能包含中英文和数字，不能有特殊符号！";
-      return null;
+      if (!val) return "内容不能为空！";
+      if (val.length > 7) return "最多只能输入 7 个字符！";
+      return null; // 移除了特殊符号正则拦截
     }
 
-    // === 核心状态保存系统 ===
+    // === 核心系统 ===
     const API_BASE = "https://xiaoce.fun/api/v0/quiz/daily/craft";
     const HEADERS = { "accept": "*/*", "cache-control": "no-cache" };
-    
+
     let gameState = { mode: 'daily', date: '', target: '', initialWords: [], inventoryWords: [], history: [] };
     let inventorySet = new Set();
-    let wordDataCache = {}; 
-    let slotWordA = null; let slotWordB = null; let currentlyViewingWord = null; 
+    let wordDataCache = {};
+    let slotWordA = null; let slotWordB = null; let currentlyViewingWord = null;
 
-    // DOM 元素
     const datePicker = document.getElementById('datePicker');
     const inventoryDiv = document.getElementById('inventory');
     const historyList = document.getElementById('historyList');
@@ -297,8 +294,18 @@
     const craftInput = document.getElementById('craftInput');
     const dictContent = document.getElementById('dictContent');
     const hintDisplay = document.getElementById('hintDisplay');
+    const inventorySearch = document.getElementById('inventorySearch');
 
     datePicker.value = new Date().toISOString().split('T')[0];
+
+    // === 词库搜索逻辑 ===
+    inventorySearch.addEventListener('input', (e) => {
+        const query = e.target.value.toLowerCase().trim();
+        document.querySelectorAll('.inventory-area .word-item').forEach(el => {
+            const word = el.dataset.word.toLowerCase();
+            el.classList.toggle('hidden', query !== "" && !word.includes(query));
+        });
+    });
 
     function saveGameProgress() {
       gameState.inventoryWords = Array.from(inventorySet);
@@ -309,29 +316,24 @@
       gameState = { mode, date, target: targetWord, initialWords: [...inits], inventoryWords: [], history: [] };
       clearUI();
       document.getElementById('targetWordDisplay').textContent = `目标: ${targetWord}`;
-      
       inits.forEach(w => { if(w) internalAddWord(w); });
       saveGameProgress();
     }
 
     function loadSavedProgress(saveObj) {
-      gameState = saveObj;
-      clearUI();
+      gameState = saveObj; clearUI();
       document.getElementById('targetWordDisplay').textContent = `目标: ${gameState.target}`;
       gameState.inventoryWords.forEach(w => internalAddWord(w));
-      
       if (gameState.history.length > 0) {
         historyList.innerHTML = '';
         [...gameState.history].reverse().forEach(item => renderHistoryItemToDOM(item));
       }
-
       if (gameState.mode === 'custom') {
         document.getElementById('cInit1').value = gameState.initialWords[0] || '';
         document.getElementById('cInit2').value = gameState.initialWords[1] || '';
         document.getElementById('cInit3').value = gameState.initialWords[2] || '';
         document.getElementById('cInit4').value = gameState.initialWords[3] || '';
         document.getElementById('cTarget').value = gameState.target;
-        
         const params = new URLSearchParams({mode: 'custom', i1: gameState.initialWords[0], i2: gameState.initialWords[1], i3: gameState.initialWords[2], i4: gameState.initialWords[3], t: gameState.target});
         window.history.pushState({}, '', window.location.pathname + '?' + params.toString());
       }
@@ -339,44 +341,39 @@
     }
 
     function clearUI() {
-      inventorySet.clear(); inventoryDiv.innerHTML = '';
+      inventorySet.clear(); inventoryDiv.innerHTML = ''; inventorySearch.value = '';
       historyList.innerHTML = '<div style="text-align: center; color: var(--text-muted); font-size: 0.95rem; margin-top: 20px;">暂无记录</div>';
       clearSlot('A'); clearSlot('B'); craftInput.value = ''; hintDisplay.innerHTML = "";
-      craftInput.placeholder = "输入合成结果 (最多6字)";
-      dictContent.innerHTML = '<div class="dict-empty">点击任意词语以查看其 Emoji 及详细解释...</div>';
+      craftInput.placeholder = "猜猜合成结果？(最多7字)";
+      dictContent.innerHTML = '<div class="dict-empty">点击任意词语查看其 Emoji 详细解释...</div>';
     }
 
     function internalAddWord(word) {
       if (!word || inventorySet.has(word)) return;
-      inventorySet.add(word); 
+      inventorySet.add(word);
       document.getElementById('wordCount').textContent = `(${inventorySet.size})`;
       const el = document.createElement('div'); el.className = 'word-item'; el.dataset.word = word;
       el.innerHTML = `<span class="emoji">❓</span> <span class="text">${word}</span>`;
-      
       el.addEventListener('click', () => {
         showWordDictionary(word);
         if (!slotWordA) { slotWordA = word; renderSlot(slotAEl, word); }
         else if (!slotWordB) { slotWordB = word; renderSlot(slotBEl, word); }
         else { slotWordA = slotWordB; slotWordB = word; renderSlot(slotAEl, slotWordA); renderSlot(slotBEl, slotWordB); }
-        hintDisplay.innerHTML = ""; craftInput.placeholder = "输入合成结果 (最多6字)";
+        hintDisplay.innerHTML = ""; craftInput.placeholder = "猜猜合成结果？(最多7字)";
         craftInput.focus();
       });
-      inventoryDiv.appendChild(el); 
-      
+      inventoryDiv.appendChild(el);
       if(!wordDataCache[word]) wordDataCache[word] = { emoji: "❓", description: "加载中..." };
-      fetchWordEmoji(word); 
+      fetchWordEmoji(word);
     }
 
-    // === URL 路由与存档自检 ===
     function checkUrlAndLoad() {
       const params = new URLSearchParams(window.location.search);
       const saveStr = localStorage.getItem('fc-save-state');
       let localSave = saveStr ? JSON.parse(saveStr) : null;
-
       if (params.get('mode') === 'custom') {
         const urlInits = [params.get('i1')||'', params.get('i2')||'', params.get('i3')||'', params.get('i4')||''];
         const urlTarget = params.get('t') || '';
-        
         if (localSave && localSave.mode === 'custom' && localSave.target === urlTarget && JSON.stringify(localSave.initialWords) === JSON.stringify(urlInits)) {
           loadSavedProgress(localSave);
         } else {
@@ -384,47 +381,36 @@
           document.getElementById('cInit3').value = urlInits[2]; document.getElementById('cInit4').value = urlInits[3];
           document.getElementById('cTarget').value = urlTarget;
           initNewGame('custom', '', urlInits, urlTarget);
-          showToast("已载入自定义挑战", "success");
         }
       } else {
-        if (localSave && localSave.mode === 'daily') {
-          loadSavedProgress(localSave);
-        } else {
-          document.getElementById('btnLoad').click();
-        }
+        if (localSave && localSave.mode === 'daily') loadSavedProgress(localSave);
+        else document.getElementById('btnLoad').click();
       }
     }
 
-    // === API 操作与 Emoji ===
     async function fetchChallenge(dateStr) {
-      showToast("正在获取挑战...", "info");
+      showToast("获取中...", "info");
       try {
         const res = await fetch(`${API_BASE}/getFiniteCraft?date=${dateStr}`);
         const json = await res.json();
         if (json.success && json.data) {
           initNewGame('daily', dateStr, json.data.initialWords, json.data.target);
-          showToast("每日挑战已加载", "success");
         }
       } catch (err) { showToast("网络请求失败", "error"); }
     }
 
     async function fetchWordEmoji(word) {
       if (wordDataCache[word] && wordDataCache[word].emoji !== "❓" && wordDataCache[word].emoji !== "✨") return wordDataCache[word];
-      
       try {
         const res = await fetch(`${API_BASE}/wordToEmoji?word=${encodeURIComponent(word.trim())}`, { method: "GET", headers: HEADERS });
         const json = await res.json();
-        
         if (json.success && json.data && json.data.emoji) {
           wordDataCache[word] = { emoji: json.data.emoji, description: json.data.description || "暂无详细释义。" };
-          updateGlobalEmoji(word); 
-          return wordDataCache[word];
+          updateGlobalEmoji(word); return wordDataCache[word];
         }
       } catch (err) {}
-      
-      wordDataCache[word] = { emoji: "✨", description: "神秘的自定义词汇，AI 暂时无法解析。" };
-      updateGlobalEmoji(word); 
-      return wordDataCache[word];
+      wordDataCache[word] = { emoji: "✨", description: "神秘词汇，AI 暂时无法解析背景含义。" };
+      updateGlobalEmoji(word); return wordDataCache[word];
     }
 
     async function getAIHint(compa, compb) {
@@ -438,12 +424,10 @@
       try {
         const res = await fetch(`${API_BASE}/checkValid?compa=${encodeURIComponent(compa)}&compb=${encodeURIComponent(compb)}&result=${encodeURIComponent(resultGuess)}`, { method: "GET", headers: HEADERS });
         return await res.json();
-      } catch (err) { showToast("验证请求失败", "error"); return null; }
+      } catch (err) { return null; }
     }
 
-    // === UI 更新辅助 ===
     function getSafeEmoji(word) { return wordDataCache[word] ? wordDataCache[word].emoji : "❓"; }
-    
     function updateGlobalEmoji(word) {
       const data = wordDataCache[word]; if (!data) return;
       document.querySelectorAll(`[data-word="${word}"] .emoji`).forEach(el => { el.textContent = data.emoji; });
@@ -451,85 +435,60 @@
       if (slotWordB === word) renderSlot(slotBEl, word);
       if (currentlyViewingWord === word) showWordDictionary(word);
     }
-
     function showWordDictionary(word) {
       currentlyViewingWord = word;
       const data = wordDataCache[word] || { emoji: "❓", description: "正在加载 AI 解释..." };
       dictContent.innerHTML = `<div class="dict-title"><span class="emoji">${data.emoji}</span> ${word}</div><div class="dict-desc">${data.description || "暂无详细释义。"}</div>`;
     }
-
     function renderSlot(el, word) {
-      if (!word) { el.className = 'slot'; el.innerHTML = '空'; } 
+      if (!word) { el.className = 'slot'; el.innerHTML = '空'; }
       else { el.className = 'slot filled'; el.innerHTML = `<span class="emoji">${getSafeEmoji(word)}</span> ${word}`; }
     }
-    
     function clearSlot(slotType) {
       if (slotType === 'A') { slotWordA = null; renderSlot(slotAEl, null); }
       if (slotType === 'B') { slotWordB = null; renderSlot(slotBEl, null); }
-      hintDisplay.innerHTML = ""; craftInput.placeholder = "输入合成结果 (最多6字)";
+      hintDisplay.innerHTML = ""; craftInput.placeholder = "猜猜合成结果？(最多7字)";
     }
 
-    // === 事件绑定与业务逻辑 ===
     craftInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') document.getElementById('btnSubmitCraft').click(); });
 
     document.getElementById('btnHint').addEventListener('click', async () => {
-      if (!slotWordA || !slotWordB) return showToast("请先在上方槽位填入两个词", "warning");
+      if (!slotWordA || !slotWordB) return showToast("请先填入两个材料", "warning");
       const btn = document.getElementById('btnHint');
       btn.disabled = true; btn.textContent = "思考中..."; hintDisplay.innerHTML = "AI 正在寻找灵感...";
-      
       const res = await getAIHint(slotWordA, slotWordB);
       btn.disabled = false; btn.textContent = "💡 提示";
-      
       if (res && res.success && res.data) {
         hintDisplay.innerHTML = `「${res.data.description}」<br><br>建议词语：<strong>「${res.data.result}」</strong>`;
-        if (!craftInput.value.trim()) craftInput.value = res.data.result; 
+        if (!craftInput.value.trim()) craftInput.value = res.data.result;
         craftInput.placeholder = res.data.result;
-      } else {
-        hintDisplay.innerHTML = "「抱歉，AI 暂时对这个组合没有灵感」";
-      }
+      } else { hintDisplay.innerHTML = "「抱歉，AI 暂时对这个组合没有灵感」"; }
     });
 
     document.getElementById('btnSubmitCraft').addEventListener('click', async () => {
       if (!slotWordA || !slotWordB) return showToast("请填满两个槽位", "warning");
-      
       const guess = craftInput.value.trim();
-      if (!guess) return showToast("请输入结果猜测", "warning");
-      
-      // 合法性拦截 (允许输入中文拼音，最后统一拦截)
       const err = validateInput(guess);
       if (err) return showToast(err, "warning");
-
       const btn = document.getElementById('btnSubmitCraft');
       btn.disabled = true; btn.textContent = "验证...";
-      const wA = slotWordA, wB = slotWordB; 
+      const wA = slotWordA, wB = slotWordB;
       const res = await checkValid(wA, wB, guess);
       btn.disabled = false; btn.textContent = "验证";
-
       if (res && res.success && res.data) {
         const isValid = res.data.valid, reason = res.data.reason, actualResult = res.data.result || guess;
-        
         const logItem = { wordA: wA, wordB: wB, guess, isValid, reason, actualResult };
-        gameState.history.unshift(logItem); 
-        renderHistoryItemToDOM(logItem);
-        
-        if (isValid) internalAddWord(actualResult); 
+        gameState.history.unshift(logItem); renderHistoryItemToDOM(logItem);
+        if (isValid) internalAddWord(actualResult);
         saveGameProgress();
-
         if(!wordDataCache[actualResult]) wordDataCache[actualResult] = { emoji: "❓" };
         fetchWordEmoji(actualResult);
-
-        // 无论是成功还是失败，都清空输入框并支持撤销
         clearInputWithUndo(craftInput);
-
         if (isValid) {
-          hintDisplay.innerHTML = ""; craftInput.placeholder = "输入合成结果 (最多6字)";
+          hintDisplay.innerHTML = ""; craftInput.placeholder = "猜猜合成结果？(最多7字)";
           showToast("合成成功", "success");
-          if (actualResult === gameState.target) {
-            Swal.fire({ title: '🎉 挑战成功！', text: `恭喜你合成了最终目标：${gameState.target}！`, icon: 'success', confirmButtonText: '继续探索' });
-          }
-        } else {
-          showToast("合成失败，换个思路吧", "error");
-        }
+          if (actualResult === gameState.target) Swal.fire({ title: '🎉 挑战成功！', text: `恭喜合成了目标：${gameState.target}！`, icon: 'success' });
+        } else { showToast("合成失败", "error"); }
       }
     });
 
@@ -537,96 +496,47 @@
       if (historyList.innerHTML.includes("暂无记录")) historyList.innerHTML = '';
       const el = document.createElement('div');
       el.className = `history-card ${item.isValid ? 'success' : 'error'}`;
-      const emojiA = getSafeEmoji(item.wordA), emojiB = getSafeEmoji(item.wordB);
-      const resultHTML = `<span data-word="${item.actualResult}" style="cursor:pointer; text-decoration:underline;" title="点击查看释义" onclick="showWordDictionary('${item.actualResult}')"><span class="emoji">❓</span> ${item.actualResult}</span>`;
-      el.innerHTML = `<div class="history-formula"><span>${item.isValid ? '✓' : '✗'}</span><span>${emojiA} ${item.wordA} + ${emojiB} ${item.wordB} = ${resultHTML}</span></div><div class="history-reason">${item.reason}</div>`;
-      historyList.prepend(el); 
+      const resultHTML = `<span data-word="${item.actualResult}" style="cursor:pointer; text-decoration:underline;" onclick="showWordDictionary('${item.actualResult}')"><span class="emoji">❓</span> ${item.actualResult}</span>`;
+      el.innerHTML = `<div class="history-formula"><span>${item.isValid ? '✓' : '✗'}</span><span>${getSafeEmoji(item.wordA)} ${item.wordA} + ${getSafeEmoji(item.wordB)} ${item.wordB} = ${resultHTML}</span></div><div class="history-reason">${item.reason}</div>`;
+      historyList.prepend(el);
     }
 
-    // === 控制按钮逻辑 ===
-    document.getElementById('btnLoad').addEventListener('click', () => { 
+    document.getElementById('btnLoad').addEventListener('click', () => {
       window.history.pushState({}, '', window.location.pathname);
-      const d = datePicker.value; if (d) fetchChallenge(d.replace(/-/g, '')); 
+      const d = datePicker.value; if (d) fetchChallenge(d.replace(/-/g, ''));
     });
 
     document.getElementById('btnRestart').addEventListener('click', () => {
-      if (inventorySet.size <= gameState.initialWords.length) return showToast("还没开始合成呢，不需要重来", "info");
-      
-      Swal.fire({
-        title: '确认重来？',
-        text: "这将清空当前进度（仅保留初始词），且不可恢复！",
-        icon: 'warning',
-        showCancelButton: true,
-        confirmButtonColor: '#d33',
-        cancelButtonColor: '#6b7280',
-        confirmButtonText: '重来',
-        cancelButtonText: '取消'
-      }).then((result) => {
-        if (result.isConfirmed) {
-          initNewGame(gameState.mode, gameState.date, gameState.initialWords, gameState.target);
-          showToast("已重新开始", "success");
-        }
+      if (inventorySet.size <= gameState.initialWords.length) return;
+      Swal.fire({ title: '重来？', text: "将清空进度且不可恢复！", icon: 'warning', showCancelButton: true, confirmButtonText: '确定' }).then((res) => {
+        if (res.isConfirmed) { initNewGame(gameState.mode, gameState.date, gameState.initialWords, gameState.target); }
       });
     });
 
-    document.getElementById('magicInput').addEventListener('keydown', (e) => { if (e.key === 'Enter') document.getElementById('btnMagicAdd').click(); });
     document.getElementById('btnMagicAdd').addEventListener('click', () => {
-      const word = document.getElementById('magicInput').value.trim(); 
-      if (!word) return showToast("请输入魔法词语", "warning");
-      
-      const err = validateInput(word);
-      if (err) return showToast(err, "warning");
-
+      const word = document.getElementById('magicInput').value.trim();
+      const err = validateInput(word); if (err) return showToast(err, "warning");
       internalAddWord(word); saveGameProgress();
-      
-      // 清空魔法输入框
       clearInputWithUndo(document.getElementById('magicInput'));
-      showToast(`施法成功：${word}`, "success");
+      showToast(`已添加：${word}`, "success");
     });
 
-    // 开始游戏按钮
     document.getElementById('btnStartCustom').addEventListener('click', () => {
-      const inits = [
-        document.getElementById('cInit1').value.trim() || '水', document.getElementById('cInit2').value.trim() || '火',
-        document.getElementById('cInit3').value.trim() || '风', document.getElementById('cInit4').value.trim() || '土'
-      ];
+      const inits = [document.getElementById('cInit1').value.trim(), document.getElementById('cInit2').value.trim(), document.getElementById('cInit3').value.trim(), document.getElementById('cInit4').value.trim()];
       const t = document.getElementById('cTarget').value.trim();
-      if (!t) return showToast("必须填写目标词汇", "error");
-
-      // 验证自定义词汇是否合法
-      for (let w of [...inits, t]) {
-        if (w) {
-            const err = validateInput(w);
-            if (err) return showToast(`词语 "${w}" 不合法：${err}`, "warning");
-        }
-      }
-
+      if (!t) return showToast("填写目标", "error");
+      initNewGame('custom', '', inits, t);
       const params = new URLSearchParams({ mode: 'custom', i1: inits[0], i2: inits[1], i3: inits[2], i4: inits[3], t: t });
       window.history.pushState({}, '', window.location.pathname + '?' + params.toString());
-      
-      initNewGame('custom', '', inits, t);
-      showToast("自定义游戏已开始", "success");
     });
 
-    // 复制链接功能
     document.getElementById('btnShareCustom').addEventListener('click', () => {
-      const inits = [
-        document.getElementById('cInit1').value.trim() || '水', document.getElementById('cInit2').value.trim() || '火',
-        document.getElementById('cInit3').value.trim() || '风', document.getElementById('cInit4').value.trim() || '土'
-      ];
-      const t = document.getElementById('cTarget').value.trim() || '魔法';
-
+      const inits = [document.getElementById('cInit1').value, document.getElementById('cInit2').value, document.getElementById('cInit3').value, document.getElementById('cInit4').value];
+      const t = document.getElementById('cTarget').value;
       const params = new URLSearchParams({ mode: 'custom', i1: inits[0], i2: inits[1], i3: inits[2], i4: inits[3], t: t });
-      const shareUrl = window.location.origin + window.location.pathname + '?' + params.toString();
-
-      navigator.clipboard.writeText(shareUrl).then(() => {
-        showToast("🔗 分享链接已生成并复制到剪贴板！", "success");
-      }).catch(err => {
-        Swal.fire("复制失败", "无法访问剪贴板，请检查权限", "error");
-      });
+      navigator.clipboard.writeText(window.location.origin + window.location.pathname + '?' + params.toString()).then(() => showToast("已复制链接", "success"));
     });
 
-    // 载入入口
     checkUrlAndLoad();
   </script>
 </body>
